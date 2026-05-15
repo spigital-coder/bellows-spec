@@ -54,10 +54,10 @@ export const ExpansionJointCard: React.FC<Props> = ({ type, isSelected, onSelect
         )}
       </div>
       
-      <h3 className={`text-sm font-bold tracking-tight ${isSelected ? 'text-brand' : 'text-slate-900'}`}>
+      <h3 className={`text-base font-bold tracking-tight ${isSelected ? 'text-brand' : 'text-slate-900'}`}>
         {type.name}
       </h3>
-      <p className="mt-1 text-xs leading-relaxed text-slate-500">
+      <p className="mt-1 text-sm leading-relaxed text-slate-500">
         {type.description}
       </p>
     </motion.div>

@@ -22,14 +22,14 @@ export const SpecForm: React.FC<Props> = ({ formData, setFormData }) => {
 
   const InputField = ({ label, section, field, placeholder, disabled }: { label: string, section: keyof SpecFormData, field: string, placeholder?: string, disabled?: boolean }) => (
     <div className={`flex flex-col gap-1 ${disabled ? 'opacity-40' : ''}`}>
-      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</label>
+      <label className="text-xs font-bold uppercase tracking-wider text-slate-400">{label}</label>
       <input
         type="text"
         value={(formData[section] as any)[field] || ''}
         onChange={(e) => !disabled && handleChange(section, field, e.target.value)}
         placeholder={placeholder}
         disabled={disabled}
-        className="rounded border border-slate-200 bg-white px-3 py-2 text-sm transition-colors focus:border-brand focus:outline-none disabled:cursor-not-allowed"
+        className="rounded border border-slate-200 bg-white px-3 py-2 text-base transition-colors focus:border-brand focus:outline-none disabled:cursor-not-allowed"
       />
     </div>
   );
@@ -43,14 +43,14 @@ export const SpecForm: React.FC<Props> = ({ formData, setFormData }) => {
       <div className="space-y-6">
         <div className="flex items-center justify-between rounded-2xl bg-slate-50 p-6">
           <div className="space-y-1">
-            <h3 className="text-sm font-bold uppercase tracking-widest text-slate-900">Bellow Shape</h3>
-            <p className="text-xs text-slate-500">Select the cross-section geometry.</p>
+            <h3 className="text-base font-bold uppercase tracking-widest text-slate-900">Bellow Shape</h3>
+            <p className="text-sm text-slate-500">Select the cross-section geometry.</p>
           </div>
           <div className="flex rounded-xl bg-slate-200 p-1">
             <button
               type="button"
               onClick={() => setFormData(prev => ({ ...prev, shape: 'rectangular' }))}
-              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-all ${
+              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold transition-all ${
                 !isCircular ? 'bg-white text-brand shadow-sm' : 'text-slate-500 hover:text-slate-700'
               }`}
             >
@@ -59,7 +59,7 @@ export const SpecForm: React.FC<Props> = ({ formData, setFormData }) => {
             <button
               type="button"
               onClick={() => setFormData(prev => ({ ...prev, shape: 'circular' }))}
-              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-all ${
+              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold transition-all ${
                 isCircular ? 'bg-white text-brand shadow-sm' : 'text-slate-500 hover:text-slate-700'
               }`}
             >
@@ -78,7 +78,7 @@ export const SpecForm: React.FC<Props> = ({ formData, setFormData }) => {
             <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-4 py-2">
               <div className="flex items-center gap-2">
                 <div className="h-1.5 w-1.5 rounded-full bg-brand" />
-                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
                   Reference: {isCircular ? 'Circular' : 'Rectangular'}
                 </span>
               </div>
@@ -105,7 +105,7 @@ export const SpecForm: React.FC<Props> = ({ formData, setFormData }) => {
       <div className="space-y-8">
         <div className="border-b border-slate-100 pb-4">
           <h2 className="font-sans text-2xl font-bold text-slate-900">Input Your Specifications</h2>
-          <p className="text-sm text-slate-500">Provide the engineering dimensions and design requirements below.</p>
+          <p className="text-base text-slate-500">Provide the engineering dimensions and design requirements below.</p>
         </div>
 
         <div className="grid gap-8 lg:grid-cols-2">
@@ -113,7 +113,7 @@ export const SpecForm: React.FC<Props> = ({ formData, setFormData }) => {
         <section className="space-y-4 rounded-2xl border border-slate-100 bg-slate-50/50 p-6">
           <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
             <div className="h-2 w-2 rounded-full bg-brand" />
-            <h2 className="font-sans text-lg font-semibold text-slate-800">Fabric Details</h2>
+            <h2 className="font-sans text-xl font-semibold text-slate-800">Fabric Details</h2>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <InputField 
@@ -145,7 +145,7 @@ export const SpecForm: React.FC<Props> = ({ formData, setFormData }) => {
         <section className="space-y-4 rounded-2xl border border-slate-100 bg-slate-50/50 p-6">
           <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
             <div className="h-2 w-2 rounded-full bg-brand" />
-            <h2 className="font-sans text-lg font-semibold text-slate-800">Duct Info</h2>
+            <h2 className="font-sans text-xl font-semibold text-slate-800">Duct Info</h2>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <InputField 
@@ -170,7 +170,7 @@ export const SpecForm: React.FC<Props> = ({ formData, setFormData }) => {
         <section className="space-y-4 rounded-2xl border border-slate-100 bg-slate-50/50 p-6">
           <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
             <div className="h-2 w-2 rounded-full bg-brand" />
-            <h2 className="font-sans text-lg font-semibold text-slate-800">Design & Movements</h2>
+            <h2 className="font-sans text-xl font-semibold text-slate-800">Design & Movements</h2>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <InputField label='P, Pressure' section="design" field="pressure" />
@@ -186,19 +186,19 @@ export const SpecForm: React.FC<Props> = ({ formData, setFormData }) => {
         <section className="space-y-4 rounded-2xl border border-slate-100 bg-slate-50/50 p-6">
           <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
             <div className="h-2 w-2 rounded-full bg-brand" />
-            <h2 className="font-sans text-lg font-semibold text-slate-800">Optional Features & Notes</h2>
+            <h2 className="font-sans text-xl font-semibold text-slate-800">Optional Features & Notes</h2>
           </div>
           
           <div className="space-y-3">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Optional Features</label>
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Optional Features</label>
             <div className="flex flex-wrap gap-4">
               {Object.entries(formData.optionalFeatures).map(([key, value]) => (
-                <label key={key} className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+                <label key={key} className="flex cursor-pointer items-center gap-2 text-base text-slate-700">
                   <input
                     type="checkbox"
                     checked={value}
                     onChange={(e) => handleChange('optionalFeatures', key, e.target.checked)}
-                    className="h-4 w-4 rounded border-slate-300 text-brand focus:ring-brand"
+                    className="h-5 w-5 rounded border-slate-300 text-brand focus:ring-brand"
                   />
                   {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
                 </label>
@@ -207,12 +207,12 @@ export const SpecForm: React.FC<Props> = ({ formData, setFormData }) => {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Application Notes</label>
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Application Notes</label>
             <textarea
               value={formData.applicationNotes}
               onChange={(e) => handleChange('applicationNotes', 'applicationNotes', e.target.value)}
               rows={3}
-              className="rounded border border-slate-200 bg-white px-3 py-2 text-sm transition-colors focus:border-brand focus:outline-none"
+              className="rounded border border-slate-200 bg-white px-3 py-2 text-base transition-colors focus:border-brand focus:outline-none"
               placeholder="Enter any specific requirements or environmental conditions..."
             />
           </div>
