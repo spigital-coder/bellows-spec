@@ -192,8 +192,32 @@ async function startServer() {
         });
       }
 
+      let parsedCredentials;
+      try {
+        if (typeof credentialsJson === "string") {
+          const trimmed = credentialsJson.trim();
+          if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+            parsedCredentials = JSON.parse(trimmed);
+          } else if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+            // Unwrapping double-serialized JSON strings
+            const inner = JSON.parse(trimmed);
+            parsedCredentials = typeof inner === "string" ? JSON.parse(inner) : inner;
+          } else {
+            throw new Error("JSON structure is malformed or lacks typical braces.");
+          }
+        } else {
+          parsedCredentials = credentialsJson;
+        }
+      } catch (parseError: any) {
+        console.error("Failed to parse GOOGLE_SERVICE_ACCOUNT_JSON env variable:", parseError);
+        return res.status(400).json({
+          status: "error",
+          message: `Google Sheets configuration format is invalid: ${parseError.message || parseError}`
+        });
+      }
+
       const auth = new google.auth.GoogleAuth({
-        credentials: JSON.parse(credentialsJson),
+        credentials: parsedCredentials,
         scopes: ["https://www.googleapis.com/auth/spreadsheets"],
       });
 
@@ -299,9 +323,13 @@ async function startServer() {
       });
 
       res.status(200).json({ status: "success", message: "Successfully saved to Google Sheets and sent email alert", email: emailResult });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error submitting spec or updating sheets:", error);
-      res.status(500).json({ status: "error", message: "Failed to persist data" });
+      const errorMsg = error?.message || String(error);
+      res.status(500).json({ 
+        status: "error", 
+        message: `Failed to save specification to Google Sheets: ${errorMsg}` 
+      });
     }
   });
 

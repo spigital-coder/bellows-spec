@@ -10,6 +10,59 @@ interface Props {
   setFormData: React.Dispatch<React.SetStateAction<SpecFormData>>;
 }
 
+const SpecFormContext = React.createContext<{
+  formData: SpecFormData;
+  handleChange: (section: keyof SpecFormData, field: string, value: any) => void;
+} | null>(null);
+
+interface InputFieldProps {
+  label: string;
+  section: keyof SpecFormData;
+  field: string;
+  placeholder?: string;
+  disabled?: boolean;
+  required?: boolean;
+  type?: string;
+}
+
+const InputField: React.FC<InputFieldProps> = ({ label, section, field, placeholder, disabled, required, type }) => {
+  const context = React.useContext(SpecFormContext);
+  if (!context) return null;
+  const { formData, handleChange } = context;
+  const isObject = typeof formData[section] === 'object';
+  const value = isObject ? (formData[section] as any)[field] : formData[section];
+  
+  const hasValue = value !== undefined && value !== null && String(value).trim().length > 0;
+
+  return (
+    <div className={`flex flex-col gap-1.5 transition-all duration-300 ${disabled ? 'opacity-30 pointer-events-none' : ''}`}>
+      <div className="flex items-center justify-between">
+        <label className={`text-[11px] font-bold uppercase tracking-widest transition-colors ${hasValue ? 'text-brand' : 'text-slate-500'}`}>
+          {label} {required && <span className="text-red-500 font-semibold">*</span>}
+        </label>
+        {hasValue && !disabled && (
+          <span className="text-[9px] font-extrabold uppercase tracking-widest text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">Filled</span>
+        )}
+      </div>
+      <div className="relative">
+        <input
+          type={type || "text"}
+          required={required}
+          value={value || ''}
+          onChange={(e) => !disabled && handleChange(section, field, e.target.value)}
+          placeholder={placeholder}
+          disabled={disabled}
+          className={`w-full rounded-xl border px-4 py-3 text-base text-slate-900 shadow-sm transition-all placeholder:text-slate-300 focus:ring-4 focus:outline-none disabled:cursor-not-allowed ${
+            hasValue 
+              ? 'border-emerald-200 bg-emerald-50/10 focus:border-emerald-500 focus:ring-emerald-500/5' 
+              : 'border-slate-200 bg-white focus:border-brand focus:ring-brand/5'
+          } hover:border-slate-300`}
+        />
+      </div>
+    </div>
+  );
+};
+
 export const SpecForm: React.FC<Props> = ({ formData, setFormData }) => {
   const handleChange = (section: keyof SpecFormData, field: string, value: any) => {
     setFormData(prev => ({
@@ -20,32 +73,12 @@ export const SpecForm: React.FC<Props> = ({ formData, setFormData }) => {
     }));
   };
 
-  const InputField = ({ label, section, field, placeholder, disabled, required }: { label: string, section: keyof SpecFormData, field: string, placeholder?: string, disabled?: boolean, required?: boolean }) => {
-    const isObject = typeof formData[section] === 'object';
-    const value = isObject ? (formData[section] as any)[field] : formData[section];
-    return (
-      <div className={`flex flex-col gap-1.5 ${disabled ? 'opacity-40' : ''}`}>
-        <label className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
-          {label} {required && <span className="text-brand">*</span>}
-        </label>
-        <input
-          type="text"
-          required={required}
-          value={value || ''}
-          onChange={(e) => !disabled && handleChange(section, field, e.target.value)}
-          placeholder={placeholder}
-          disabled={disabled}
-          className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 shadow-sm transition-all placeholder:text-slate-300 focus:border-brand focus:ring-4 focus:ring-brand/5 focus:outline-none disabled:cursor-not-allowed"
-        />
-      </div>
-    );
-  };
-
   const isCircular = formData.shape === 'circular';
   const selectedJoint = JOINT_TYPES.find(j => j.id === formData.selectedStyle);
 
   return (
-    <div className="space-y-8">
+    <SpecFormContext.Provider value={{ formData, handleChange }}>
+      <div className="space-y-8">
       {/* Shape Selector & Technical Diagrams */}
       <div className="space-y-6">
         <div className="flex flex-col items-center justify-between gap-4 rounded-2xl bg-slate-50 p-4 sm:flex-row sm:p-6">
@@ -133,6 +166,7 @@ export const SpecForm: React.FC<Props> = ({ formData, setFormData }) => {
                 section="fabricDetails" 
                 field="dimA" 
                 placeholder={isCircular ? "e.g. 24 in" : "Width"} 
+                required
               />
               <InputField 
                 label={isCircular ? '"B" Inside Belt Dim. (N/A for Circular)' : '"B" Inside Belt Dim.: (in)'} 
@@ -140,10 +174,11 @@ export const SpecForm: React.FC<Props> = ({ formData, setFormData }) => {
                 field="dimB" 
                 placeholder="Height"
                 disabled={isCircular}
+                required={!isCircular}
               />
-              <InputField label='"C" Width Between Clamp Bars: (in)' section="fabricDetails" field="dimC" placeholder="Width" />
-              <InputField label='Width of Clamp Bars: (in)' section="fabricDetails" field="clampBarWidth" placeholder="e.g. 2 in" />
-              <InputField label='Overall Belt Width: (in)' section="fabricDetails" field="overallBeltWidth" placeholder="Total" />
+              <InputField label='"C" Width Between Clamp Bars: (in)' section="fabricDetails" field="dimC" placeholder="Width" required />
+              <InputField label='Width of Clamp Bars: (in)' section="fabricDetails" field="clampBarWidth" placeholder="e.g. 2 in" required />
+              <InputField label='Overall Belt Width: (in)' section="fabricDetails" field="overallBeltWidth" placeholder="Total" required />
               <InputField 
                 label='Corner Radius (Rec. Only): (in)' 
                 section="fabricDetails" 
@@ -167,10 +202,11 @@ export const SpecForm: React.FC<Props> = ({ formData, setFormData }) => {
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
               <InputField 
-                label={isCircular ? '"D" (One Side or Dia.): (in)' : '"D" (One Side or Dia.): (in)'} 
+                label='"D" (One Side or Dia.): (in)' 
                 section="ductInfo" 
                 field="dimD" 
                 placeholder="e.g. 24.5 in"
+                required
               />
               <InputField 
                 label={isCircular ? '"W" (N/A for Circular)' : '"W" (Other Side): (in)'} 
@@ -178,8 +214,9 @@ export const SpecForm: React.FC<Props> = ({ formData, setFormData }) => {
                 field="dimW" 
                 placeholder="Height"
                 disabled={isCircular}
+                required={!isCircular}
               />
-              <InputField label='Width Between Clamps: (in)' section="ductInfo" field="widthBetweenClamps" />
+              <InputField label='Width Between Clamps: (in)' section="ductInfo" field="widthBetweenClamps" required />
               <InputField label='Flange (If Applicable): (in)' section="ductInfo" field="flange" />
               <InputField label='Duct Thickness: (in)' section="ductInfo" field="ductThickness" />
               <InputField label='Duct Material' section="ductInfo" field="ductMaterial" placeholder="e.g. Carbon Steel" />
@@ -198,12 +235,12 @@ export const SpecForm: React.FC<Props> = ({ formData, setFormData }) => {
               </div>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
-              <InputField label='P, Pressure: PSI' section="design" field="pressure" />
-              <InputField label='T, Temperature: °F (or °C)' section="design" field="temperature" />
+              <InputField label='P, Pressure: PSI' section="design" field="pressure" required />
+              <InputField label='T, Temperature: °F (or °C)' section="design" field="temperature" required />
               <InputField label='Axial Compression: (in)' section="movements" field="axialCompression" />
               <InputField label='Axial Expansion: (in)' section="movements" field="axialExpansion" />
               <InputField label='Lateral: inches (in)' section="movements" field="lateral" />
-              <InputField label='Quantity Required' section="quantity" field="quantity" />
+              <InputField label='Quantity Required' section="quantity" field="quantity" required />
             </div>
           </section>
 
@@ -260,7 +297,7 @@ export const SpecForm: React.FC<Props> = ({ formData, setFormData }) => {
           </section>
 
           {/* Contact Details Section */}
-          <section className="space-y-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8 md:col-span-2">
+          <section className="space-y-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8 md:col-span-2 animate-fade-in">
             <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/10 text-brand">
                 <User size={20} />
@@ -272,59 +309,43 @@ export const SpecForm: React.FC<Props> = ({ formData, setFormData }) => {
             </div>
             
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 sm:gap-5">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Contact Name <span className="text-brand">*</span></label>
-                <input
-                  type="text"
-                  required
-                  value={formData.contactDetails.name}
-                  onChange={(e) => handleChange('contactDetails', 'name', e.target.value)}
-                  placeholder="e.g. John Doe"
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 shadow-sm transition-all focus:border-brand focus:ring-4 focus:ring-brand/5 focus:outline-none"
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Phone Number <span className="text-brand">*</span></label>
-                <input
-                  type="tel"
-                  required
-                  value={formData.contactDetails.phone}
-                  onChange={(e) => handleChange('contactDetails', 'phone', e.target.value)}
-                  placeholder="e.g. +1 (555) 019-2834"
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 shadow-sm transition-all focus:border-brand focus:ring-4 focus:ring-brand/5 focus:outline-none"
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Email Address <span className="text-brand">*</span></label>
-                <input
-                  type="email"
-                  required
-                  value={formData.contactDetails.email}
-                  onChange={(e) => handleChange('contactDetails', 'email', e.target.value)}
-                  placeholder="e.g. john@company.com"
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 shadow-sm transition-all focus:border-brand focus:ring-4 focus:ring-brand/5 focus:outline-none"
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Company Name <span className="text-brand">*</span></label>
-                <input
-                  type="text"
-                  required
-                  value={formData.contactDetails.companyName}
-                  onChange={(e) => handleChange('contactDetails', 'companyName', e.target.value)}
-                  placeholder="e.g. Bellows Systems Inc"
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 shadow-sm transition-all focus:border-brand focus:ring-4 focus:ring-brand/5 focus:outline-none"
-                />
-              </div>
-              <div className="flex flex-col gap-1.5 sm:col-span-2 lg:col-span-1">
-                <label className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Country <span className="text-brand">*</span></label>
-                <input
-                  type="text"
-                  required
-                  value={formData.contactDetails.country}
-                  onChange={(e) => handleChange('contactDetails', 'country', e.target.value)}
-                  placeholder="e.g. United States"
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 shadow-sm transition-all focus:border-brand focus:ring-4 focus:ring-brand/5 focus:outline-none"
+              <InputField 
+                label="Contact Name" 
+                section="contactDetails" 
+                field="name" 
+                placeholder="e.g. John Doe" 
+                required 
+              />
+              <InputField 
+                label="Phone Number" 
+                section="contactDetails" 
+                field="phone" 
+                placeholder="e.g. +1 (555) 019-2834" 
+                type="tel"
+                required 
+              />
+              <InputField 
+                label="Email Address" 
+                section="contactDetails" 
+                field="email" 
+                placeholder="e.g. john@company.com" 
+                type="email"
+                required 
+              />
+              <InputField 
+                label="Company Name" 
+                section="contactDetails" 
+                field="companyName" 
+                placeholder="e.g. Bellows Systems Inc" 
+                required 
+              />
+              <div className="sm:col-span-2 lg:col-span-1">
+                <InputField 
+                  label="Country" 
+                  section="contactDetails" 
+                  field="country" 
+                  placeholder="e.g. United States" 
+                  required 
                 />
               </div>
             </div>
@@ -332,5 +353,6 @@ export const SpecForm: React.FC<Props> = ({ formData, setFormData }) => {
         </div>
       </div>
     </div>
+    </SpecFormContext.Provider>
   );
 };
