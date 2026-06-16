@@ -76,8 +76,22 @@ export default function App() {
     e.preventDefault();
     setIsSubmitting(true);
     
+    // Auto-detect routing path: if host is a static or external custom domain, forward the payload
+    // to the live full-stack container on Cloud Run.
+    const getApiUrl = () => {
+      const customUrl = (import.meta as any).env?.VITE_BACKEND_URL;
+      if (customUrl) return customUrl;
+
+      const origin = window.location.origin;
+      if (origin.includes('localhost') || origin.includes('run.app')) {
+        return '/api/submit-spec';
+      }
+      return 'https://ais-pre-qmfhz6b5k7lumnnooz2f5n-208026481765.asia-east1.run.app/api/submit-spec';
+    };
+    
     try {
-      const response = await fetch('/api/submit-spec', {
+      const apiUrl = getApiUrl();
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

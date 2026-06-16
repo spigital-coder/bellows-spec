@@ -166,6 +166,17 @@ async function startServer() {
 
   app.use(express.json());
 
+  // CORS middleware: allow cross-origin requests from external web servers/hosts (e.g., spec.bellows-systems.com)
+  app.use((req, res, next) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, PATCH, DELETE");
+    res.setHeader("Access-Control-Allow-Headers", "X-Requested-With,Content-Type,Authorization");
+    if (req.method === "OPTIONS") {
+      return res.sendStatus(200);
+    }
+    next();
+  });
+
   // API Route: Submit to Google Sheets and Send Webmaster Email Inquiry Notification
   app.post("/api/submit-spec", async (req, res) => {
     try {
