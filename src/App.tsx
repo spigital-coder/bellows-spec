@@ -76,13 +76,14 @@ export default function App() {
     e.preventDefault();
     setIsSubmitting(true);
     
-    // Auto-detect routing path: if host is a static or external custom domain, forward the payload
-    // to the live full-stack container on Cloud Run.
+    // Auto-detect routing path: if running on local development or on our own Cloud Run preview URL,
+    // use a relative path. If hosted on an external custom domain statically (such as spec.bellows-systems.com),
+    // we must direct API requests directly to our full-stack live Cloud Run container.
     const getApiUrl = () => {
       const customUrl = (import.meta as any).env?.VITE_BACKEND_URL;
       if (customUrl) return customUrl;
 
-      const origin = window.location.origin;
+      const origin = typeof window !== 'undefined' ? window.location.origin : '';
       if (origin.includes('localhost') || origin.includes('run.app')) {
         return '/api/submit-spec';
       }
@@ -99,7 +100,20 @@ export default function App() {
         body: JSON.stringify(formData),
       });
 
-      const result = await response.json();
+      // Safely read response text first to handle non-JSON error pages gracefully
+      const responseText = await response.text();
+      let result: any = {};
+      
+      try {
+        result = JSON.parse(responseText);
+      } catch (parseError) {
+        // If it starts with '<' or we can't parse it as JSON, the server likely returned an HTML error page (e.g., 404/405/502)
+        if (responseText.trim().startsWith('<') || response.status >= 400) {
+          throw new Error(`Server returned HTTP ${response.status}: ${response.statusText || 'Unable to parse server response.'}. Please verify your domain's backend is running.`);
+        }
+        throw new Error(`Invalid response format from server: ${responseText.substring(0, 100)}`);
+      }
+
       console.log('Submission result:', result);
 
       if (!response.ok) {
