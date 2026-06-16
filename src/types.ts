@@ -27,6 +27,14 @@ export interface Movements {
   lateral: string;
 }
 
+export interface ContactDetails {
+  name: string;
+  phone: string;
+  email: string;
+  companyName: string;
+  country: string;
+}
+
 export interface SpecFormData {
   selectedStyle: string;
   shape: 'circular' | 'rectangular';
@@ -41,6 +49,7 @@ export interface SpecFormData {
     linerBolted: boolean;
     linerWelded: boolean;
   };
+  contactDetails: ContactDetails;
 }
 
 export interface JointType {

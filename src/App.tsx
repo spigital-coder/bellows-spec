@@ -51,6 +51,13 @@ const initialFormData: SpecFormData = {
     linerBolted: false,
     linerWelded: false,
   },
+  contactDetails: {
+    name: '',
+    phone: '',
+    email: '',
+    companyName: '',
+    country: '',
+  },
 };
 
 export default function App() {
@@ -95,40 +102,42 @@ export default function App() {
             <img 
               src="https://www.bellows-systems.com/wp-content/uploads/2020/04/BS-Logo-White.png.webp" 
               alt="Bellows Systems Logo" 
-              className="h-10 w-auto"
+              className="h-8 w-auto md:h-10"
               referrerPolicy="no-referrer"
             />
           </a>
           
-          <nav className="flex items-center gap-6">
+          <nav className="flex items-center gap-4">
             <a 
               href="https://www.bellows-systems.com/" 
-              className="flex items-center gap-2 rounded-full border border-white/20 px-5 py-2 text-base font-bold text-white transition-all hover:bg-white hover:text-slate-900"
+              className="flex items-center gap-2 rounded-full border border-white/20 px-4 py-2 text-sm font-bold text-white transition-all hover:bg-white hover:text-slate-900 md:px-5 md:py-2 md:text-base"
             >
-              Back To Website
+              <Globe size={16} className="md:hidden" />
+              <span className="hidden md:inline">Back To Website</span>
+              <span className="md:hidden">Website</span>
             </a>
           </nav>
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-6 py-12">
+      <main className="mx-auto max-w-7xl px-4 py-8 md:px-6 md:py-12">
         {/* Hero Section */}
-        <section className="mb-20 grid items-center gap-12 lg:grid-cols-2">
+        <section className="mb-12 grid items-center gap-8 md:mb-20 lg:grid-cols-2 lg:gap-12">
           <motion.div 
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="space-y-6"
+            className="space-y-6 text-center lg:text-left"
           >
-            <h2 className="font-sans text-6xl font-semibold leading-[0.9] tracking-tight text-slate-900 md:text-7xl">
+            <h2 className="font-sans text-5xl font-semibold leading-[0.9] tracking-tight text-slate-900 md:text-7xl">
               Fabric <span className="text-brand">Expansion</span> Joints
             </h2>
-            <p className="max-w-md text-lg leading-relaxed text-slate-500">
+            <p className="mx-auto max-w-md text-base leading-relaxed text-slate-500 md:text-lg lg:mx-0">
               Bellows Systems manufactures high-performance composite fabric expansion joints for low-pressure ducting, engineered to handle extreme temperatures and misalignment.
             </p>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center lg:justify-start">
               <button 
                 onClick={() => document.getElementById('style-selection')?.scrollIntoView({ behavior: 'smooth' })}
-                className="flex items-center gap-2 rounded-full bg-brand px-8 py-4 font-bold text-white shadow-xl shadow-brand/20 transition-all hover:bg-brand-dark hover:shadow-brand/30"
+                className="w-full flex items-center justify-center gap-2 rounded-full bg-brand px-8 py-4 font-bold text-white shadow-xl shadow-brand/20 transition-all hover:bg-brand-dark hover:shadow-brand/30 sm:w-auto"
               >
                 Start Specification <ChevronRight size={20} />
               </button>
@@ -143,27 +152,27 @@ export default function App() {
             <div className="flex gap-1 p-1">
               <button
                 onClick={() => setActiveTab('performance')}
-                className={`flex-1 rounded-2xl py-3 text-sm font-bold uppercase tracking-widest transition-all ${
+                className={`flex-1 rounded-2xl py-3 text-xs font-bold uppercase tracking-widest transition-all md:text-sm ${
                   activeTab === 'performance' 
                     ? 'bg-white text-brand shadow-sm' 
                     : 'text-slate-400 hover:text-slate-600'
                 }`}
               >
-                Performance Data
+                Performance
               </button>
               <button
                 onClick={() => setActiveTab('movement')}
-                className={`flex-1 rounded-2xl py-3 text-sm font-bold uppercase tracking-widest transition-all ${
+                className={`flex-1 rounded-2xl py-3 text-xs font-bold uppercase tracking-widest transition-all md:text-sm ${
                   activeTab === 'movement' 
                     ? 'bg-white text-brand shadow-sm' 
                     : 'text-slate-400 hover:text-slate-600'
                 }`}
               >
-                Movement Range
+                Movements
               </button>
             </div>
 
-            <div className="flex-1 p-8">
+            <div className="flex-1 p-6 md:p-8">
               <AnimatePresence mode="wait">
                 {activeTab === 'performance' ? (
                   <motion.div
@@ -229,12 +238,12 @@ export default function App() {
 
         {/* Style Selection */}
         <section id="style-selection" className="mb-20 space-y-8">
-          <div className="flex items-end justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="space-y-2">
               <h3 className="text-sm font-bold uppercase tracking-[0.3em] text-brand">Step 01</h3>
               <h2 className="font-sans text-4xl font-semibold text-slate-900">Select Joint Style</h2>
             </div>
-            <p className="max-w-xs text-right text-sm text-slate-400">
+            <p className="max-w-xs text-sm text-slate-400 sm:text-right">
               Choose the profile that best matches your ducting configuration. Each style is engineered for specific movement and pressure profiles.
             </p>
           </div>
@@ -256,12 +265,12 @@ export default function App() {
 
         {/* Specification Form */}
         <section id="spec-form" className="mb-20 space-y-8">
-          <div className="flex items-end justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="space-y-2">
               <h3 className="text-sm font-bold uppercase tracking-[0.3em] text-brand">Step 02</h3>
               <h2 className="font-sans text-4xl font-semibold text-slate-900">Technical Specifications</h2>
             </div>
-            <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-4 py-2 text-sm font-medium text-slate-500">
+            <div className="flex w-fit items-center gap-2 rounded-lg bg-slate-50 px-4 py-2 text-sm font-medium text-slate-500">
               <FileText size={14} />
               Selected: <span className="font-bold text-slate-900">{formData.selectedStyle}</span>
             </div>
@@ -270,55 +279,70 @@ export default function App() {
           <form onSubmit={handleSubmit} className="space-y-12">
             <SpecForm formData={formData} setFormData={setFormData} />
             
-            <div className="flex flex-col items-center justify-center gap-6 border-t border-slate-100 pt-12">
-              <p className="max-w-md text-center text-base text-slate-400">
-                By submitting this form, you are requesting a technical review of these specifications. Our engineers may contact you for additional clarification.
-              </p>
+            <div className="flex flex-col items-center justify-center gap-8 border-t border-slate-100 bg-slate-50/30 py-16 px-6 rounded-3xl">
+              <div className="flex flex-col items-center gap-3 text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand/10 text-brand">
+                  <Info size={24} />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900">Ready to Submit?</h3>
+                <p className="max-w-md text-base leading-relaxed text-slate-500">
+                  Our engineering team will review your specifications for technical feasibility and environmental compatibility before providing a formal quotation.
+                </p>
+              </div>
+              
               <button 
                 type="submit"
                 disabled={isSubmitting}
-                className="group relative flex items-center gap-3 overflow-hidden rounded-full bg-slate-900 px-12 py-5 text-lg font-bold text-white transition-all hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+                className="group relative flex items-center gap-4 overflow-hidden rounded-2xl bg-slate-900 px-10 py-5 text-xl font-bold text-white shadow-2xl shadow-slate-200 transition-all hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
               >
                 <span className="relative z-10 flex items-center gap-3">
-                  {isSubmitting ? 'Submitting...' : 'Submit Specification'} 
-                  {!isSubmitting && <Send size={20} className="transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" />}
+                  {isSubmitting ? 'Processing Review...' : 'Submit Technical Review'} 
+                  {!isSubmitting && <Send size={22} className="transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" />}
                 </span>
-                <div className="absolute inset-0 -translate-x-full bg-brand transition-transform group-hover:translate-x-0" />
+                <div className="absolute inset-0 -translate-x-full bg-brand transition-transform duration-500 ease-out group-hover:translate-x-0" />
               </button>
+
+              <div className="flex items-center gap-2 text-sm font-medium text-slate-400">
+                <CheckCircle2 size={16} className="text-emerald-500" />
+                Response time typically within 24 business hours
+              </div>
             </div>
           </form>
         </section>
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-100 bg-slate-50 py-16">
+      <footer className="border-t border-slate-200 bg-white py-12 md:py-20">
         <div className="mx-auto max-w-7xl px-6">
-          <div className="grid gap-12 md:grid-cols-4">
-            <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-12 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="space-y-6">
               <img 
                 src="https://www.bellows-systems.com/wp-content/uploads/2020/04/BS-Logo-White.png.webp" 
                 alt="Bellows Systems Logo" 
                 className="h-8 w-auto brightness-0"
                 referrerPolicy="no-referrer"
               />
-              <p className="text-base text-slate-500">
+              <p className="text-sm text-slate-500 md:text-base">
                 Leading manufacturer of metallic and fabric expansion joints since 1974.
               </p>
             </div>
+            
             <div className="space-y-4">
               <h4 className="text-sm font-bold uppercase tracking-widest text-slate-900">Contact</h4>
-              <div className="space-y-2 text-base text-slate-500">
+              <div className="space-y-2 text-sm text-slate-500 md:text-base">
                 <p className="flex items-center gap-2"><MapPin size={14} /> Houston, Texas, USA</p>
                 <p className="flex items-center gap-2"><Globe size={14} /> www.bellows-systems.com</p>
               </div>
             </div>
+
             <div className="space-y-4">
               <h4 className="text-sm font-bold uppercase tracking-widest text-slate-900">Compliance</h4>
-              <div className="space-y-2 text-base text-slate-500">
+              <div className="space-y-2 text-sm text-slate-500 md:text-base">
                 <p>CAGE CODE: 22727</p>
                 <p>ISO 9001:2015 Certified</p>
               </div>
             </div>
+
             <div className="space-y-4">
               <h4 className="text-sm font-bold uppercase tracking-widest text-slate-900">Legal</h4>
               <p className="text-xs leading-relaxed text-slate-400">
@@ -326,7 +350,8 @@ export default function App() {
               </p>
             </div>
           </div>
-          <div className="mt-16 border-t border-slate-200 pt-8 text-center text-xs font-bold uppercase tracking-widest text-slate-400">
+          
+          <div className="mt-12 border-t border-slate-200 pt-8 text-center text-xs font-bold uppercase tracking-widest text-slate-400 md:mt-16">
             © 2026 Bellows Systems Inc. All Rights Reserved.
           </div>
         </div>
