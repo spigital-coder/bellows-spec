@@ -7,19 +7,29 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  // CORS middleware: allow cross-origin requests from external web servers/hosts (e.g., spec.bellows-systems.com)
+  // CORS middleware: allow cross-origin requests from external web servers/hosts (specifically https://spec.bellows-systems.com)
   // Must be registered BEFORE express.json() to handle preflight OPTIONS requests without parsing overhead.
   app.use((req, res, next) => {
-    const origin = req.headers.origin || "*";
-    res.setHeader("Access-Control-Allow-Origin", origin);
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, PATCH, DELETE");
-    res.setHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+    const origin = req.headers.origin || "https://spec.bellows-systems.com";
+    
+    // Check if the request origin matches the production domain or trusted local/sandboxed developer environments
+    const isAllowed = 
+      origin === "https://spec.bellows-systems.com" || 
+      origin.startsWith("http://localhost:") || 
+      origin.startsWith("http://127.0.0.1:") || 
+      origin.endsWith(".run.app");
+
+    res.setHeader("Access-Control-Allow-Origin", isAllowed ? origin : "https://spec.bellows-systems.com");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, Origin, X-Requested-With, Accept");
     res.setHeader("Access-Control-Allow-Credentials", "true");
     
+    // Pre-flight Private Network Access headers if requested (Chrome spec)
     if (req.headers['access-control-request-private-network']) {
       res.setHeader('Access-Control-Allow-Private-Network', 'true');
     }
 
+    // Intercept preflight OPTIONS request and return 204 (No Content)
     if (req.method === "OPTIONS") {
       res.setHeader("Content-Length", "0");
       return res.status(204).end();
