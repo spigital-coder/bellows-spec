@@ -7,14 +7,26 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  // CORS middleware: allow cross-origin requests from any origin making the request (specifically https://spec.bellows-systems.com)
-  // Must be registered BEFORE express.json() to handle preflight OPTIONS requests without parsing overhead.
+  // 1. Global CORS middleware: allow cross-origin requests from external web servers/hosts
+  // Must be registered BEFORE express.json() and any routing to handle preflight OPTIONS requests immediately.
   app.use((req, res, next) => {
-    const origin = req.headers.origin || "*";
+    // Log incoming requests for server metrics/verification
+    console.log(`[${req.method}] ${req.path} - Origin: ${req.headers.origin || "None"}`);
+
+    const origin = req.headers.origin || "https://spec.bellows-systems.com";
     
-    res.setHeader("Access-Control-Allow-Origin", origin);
+    // Check if the request origin matches the production domain or trusted local/sandboxed developer environments
+    const isAllowed = 
+      origin === "https://spec.bellows-systems.com" || 
+      origin === "http://localhost:5173" ||
+      origin === "http://127.0.0.1:5173" ||
+      origin.startsWith("http://localhost:") || 
+      origin.startsWith("http://127.0.0.1:") || 
+      origin.endsWith(".run.app");
+
+    res.setHeader("Access-Control-Allow-Origin", isAllowed ? origin : "https://spec.bellows-systems.com");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, Origin, X-Requested-With, Accept, Access-Control-Allow-Headers, Access-Control-Request-Method, Access-Control-Request-Headers");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
     
     if (origin !== "*") {
       res.setHeader("Access-Control-Allow-Credentials", "true");
@@ -34,6 +46,34 @@ async function startServer() {
   });
 
   app.use(express.json());
+
+  // Health check endpoint (GET /health)
+  app.get("/health", (req, res) => {
+    res.json({
+      status: "running",
+      version: "cors-fix-v1"
+    });
+  });
+
+  // Explicit global route handler for OPTIONS requests
+  app.options("*", (req, res) => {
+    const origin = req.headers.origin || "https://spec.bellows-systems.com";
+    const isAllowed = 
+      origin === "https://spec.bellows-systems.com" || 
+      origin === "http://localhost:5173" ||
+      origin === "http://127.0.0.1:5173" ||
+      origin.startsWith("http://localhost:") || 
+      origin.startsWith("http://127.0.0.1:") || 
+      origin.endsWith(".run.app");
+
+    res.setHeader("Access-Control-Allow-Origin", isAllowed ? origin : "https://spec.bellows-systems.com");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    if (origin !== "*") {
+      res.setHeader("Access-Control-Allow-Credentials", "true");
+    }
+    return res.sendStatus(204);
+  });
 
   // API Route: Submit directly to Google Sheets (supports both slash and no-slash paths to prevent redirection CORS drops)
   app.post(["/api/submit-spec", "/api/submit-spec/"], async (req, res) => {
