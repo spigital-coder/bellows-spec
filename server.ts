@@ -7,18 +7,27 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  app.use(express.json());
-
   // CORS middleware: allow cross-origin requests from external web servers/hosts (e.g., spec.bellows-systems.com)
+  // Must be registered BEFORE express.json() to handle preflight OPTIONS requests without parsing overhead.
   app.use((req, res, next) => {
-    res.setHeader("Access-Control-Allow-Origin", "*");
+    const origin = req.headers.origin || "*";
+    res.setHeader("Access-Control-Allow-Origin", origin);
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, PATCH, DELETE");
-    res.setHeader("Access-Control-Allow-Headers", "X-Requested-With,Content-Type,Authorization");
+    res.setHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    
+    if (req.headers['access-control-request-private-network']) {
+      res.setHeader('Access-Control-Allow-Private-Network', 'true');
+    }
+
     if (req.method === "OPTIONS") {
-      return res.sendStatus(200);
+      res.setHeader("Content-Length", "0");
+      return res.status(204).end();
     }
     next();
   });
+
+  app.use(express.json());
 
   // API Route: Submit directly to Google Sheets
   app.post("/api/submit-spec", async (req, res) => {

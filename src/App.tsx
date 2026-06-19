@@ -76,13 +76,17 @@ export default function App() {
     e.preventDefault();
     setIsSubmitting(true);
     
-    // Auto-detect routing path: use the relative path /api/submit-spec by default.
-    // This allows any custom domain pointing to our full-stack container on Cloud Run
-    // (like spec.bellows-systems.com) to work out-of-the-box without cross-origin blocks.
+    // Auto-detect routing path: if host is a static or external custom domain (like spec.bellows-systems.com),
+    // forward the payload to the live full-stack container on Cloud Run with CORS support.
     const getApiUrl = () => {
       const customUrl = (import.meta as any).env?.VITE_BACKEND_URL;
       if (customUrl) return customUrl;
-      return '/api/submit-spec';
+
+      const origin = window.location.origin;
+      if (origin.includes('localhost') || origin.includes('127.0.0.1') || origin.includes('run.app')) {
+        return '/api/submit-spec';
+      }
+      return 'https://ais-pre-qmfhz6b5k7lumnnooz2f5n-208026481765.asia-east1.run.app/api/submit-spec';
     };
     
     // Generate an elegant, human-readable date and time on the client-side
