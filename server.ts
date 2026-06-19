@@ -7,22 +7,18 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  // CORS middleware: allow cross-origin requests from external web servers/hosts (specifically https://spec.bellows-systems.com)
+  // CORS middleware: allow cross-origin requests from any origin making the request (specifically https://spec.bellows-systems.com)
   // Must be registered BEFORE express.json() to handle preflight OPTIONS requests without parsing overhead.
   app.use((req, res, next) => {
-    const origin = req.headers.origin || "https://spec.bellows-systems.com";
+    const origin = req.headers.origin || "*";
     
-    // Check if the request origin matches the production domain or trusted local/sandboxed developer environments
-    const isAllowed = 
-      origin === "https://spec.bellows-systems.com" || 
-      origin.startsWith("http://localhost:") || 
-      origin.startsWith("http://127.0.0.1:") || 
-      origin.endsWith(".run.app");
-
-    res.setHeader("Access-Control-Allow-Origin", isAllowed ? origin : "https://spec.bellows-systems.com");
+    res.setHeader("Access-Control-Allow-Origin", origin);
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, Origin, X-Requested-With, Accept");
-    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, Origin, X-Requested-With, Accept, Access-Control-Allow-Headers, Access-Control-Request-Method, Access-Control-Request-Headers");
+    
+    if (origin !== "*") {
+      res.setHeader("Access-Control-Allow-Credentials", "true");
+    }
     
     // Pre-flight Private Network Access headers if requested (Chrome spec)
     if (req.headers['access-control-request-private-network']) {
@@ -39,8 +35,8 @@ async function startServer() {
 
   app.use(express.json());
 
-  // API Route: Submit directly to Google Sheets
-  app.post("/api/submit-spec", async (req, res) => {
+  // API Route: Submit directly to Google Sheets (supports both slash and no-slash paths to prevent redirection CORS drops)
+  app.post(["/api/submit-spec", "/api/submit-spec/"], async (req, res) => {
     try {
       const data = req.body;
       const spreadsheetId = process.env.GOOGLE_SHEET_ID;
