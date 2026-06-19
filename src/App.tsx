@@ -76,18 +76,33 @@ export default function App() {
     e.preventDefault();
     setIsSubmitting(true);
     
-    // Auto-detect routing path: if running on local development or on our own Cloud Run preview URL,
-    // use a relative path. If hosted on an external custom domain statically (such as spec.bellows-systems.com),
-    // we must direct API requests directly to our full-stack live Cloud Run container.
+    // Auto-detect routing path: if host is a static or external custom domain (like spec.bellows-systems.com),
+    // forward the payload to the live full-stack container on Cloud Run.
     const getApiUrl = () => {
       const customUrl = (import.meta as any).env?.VITE_BACKEND_URL;
       if (customUrl) return customUrl;
 
-      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+      const origin = window.location.origin;
       if (origin.includes('localhost') || origin.includes('run.app')) {
         return '/api/submit-spec';
       }
       return 'https://ais-pre-qmfhz6b5k7lumnnooz2f5n-208026481765.asia-east1.run.app/api/submit-spec';
+    };
+    
+    // Generate an elegant, human-readable date and time on the client-side
+    const localSubmissionDate = new Date().toLocaleString('en-US', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+
+    const payload = {
+      ...formData,
+      submissionDate: localSubmissionDate
     };
     
     try {
@@ -97,7 +112,7 @@ export default function App() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       // Safely read response text first to handle non-JSON error pages gracefully
