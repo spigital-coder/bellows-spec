@@ -86,7 +86,7 @@ export default function App() {
       if (origin.includes('localhost') || origin.includes('127.0.0.1') || origin.includes('run.app')) {
         return '/api/submit-spec';
       }
-      return 'https://ais-dev-qmfhz6b5k7lumnnooz2f5n-208026481765.asia-east1.run.app/api/submit-spec';
+      return 'https://ais-pre-qmfhz6b5k7lumnnooz2f5n-208026481765.asia-east1.run.app/api/submit-spec';
     };
     
     // Generate an elegant, human-readable date and time on the client-side
