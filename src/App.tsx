@@ -76,19 +76,16 @@ export default function App() {
     e.preventDefault();
     setIsSubmitting(true);
     
-    // Auto-detect routing path: if they set VITE_BACKEND_URL, use it. Otherwise use absolute/relative logic.
+    // Auto-detect routing path: if they set VITE_GOOGLE_SCRIPT_URL, they can submit directly from the client.
+    // If they set VITE_BACKEND_URL, use it. Otherwise use the relative sheets-proxy endpoint.
     const getApiUrl = () => {
+      const scriptUrl = (import.meta as any).env?.VITE_GOOGLE_SCRIPT_URL;
+      if (scriptUrl) return scriptUrl;
+
       const customUrl = (import.meta as any).env?.VITE_BACKEND_URL;
       if (customUrl) return customUrl;
 
-      const origin = window.location.origin;
-      // If it is running on a managed or local platform (including AI Studio), relative paths work seamlessly.
-      if (origin.includes('localhost') || origin.includes('127.0.0.1') || origin.includes('run.app')) {
-        return '/api/submit-spec';
-      }
-      // If hosted statically on spec.bellows-systems.com, but backend runs separately on a custom container,
-      // fallback to the live Cloud Run backend URL.
-      return 'https://ais-pre-qmfhz6b5k7lumnnooz2f5n-208026481765.asia-east1.run.app/api/submit-spec';
+      return '/api/submit-spec';
     };
 
     const payload = {
@@ -106,28 +103,39 @@ export default function App() {
     
     try {
       const apiUrl = getApiUrl();
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
+      const isDirectScript = apiUrl.includes('script.google.com');
 
-      const responseText = await response.text();
-      let result: any = {};
-      
-      try {
-        result = JSON.parse(responseText);
-      } catch {
-        if (responseText.trim().startsWith('<') || response.status >= 400) {
-          throw new Error(`Server returned HTTP ${response.status}: Unable to parse response.`);
+      if (isDirectScript) {
+        // Direct submit to Google Apps Script requires mode: 'no-cors' to prevent CORS preflight block.
+        // Opaque response is returned (status 0), which is normal and indicates the request has been dispatched and received.
+        await fetch(apiUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: {
+            'Content-Type': 'text/plain',
+          },
+          body: JSON.stringify(payload),
+        });
+      } else {
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          let errorMsg = 'The server returned an error response.';
+          try {
+            const responseText = await response.text();
+            const result = JSON.parse(responseText);
+            errorMsg = result.message || errorMsg;
+          } catch {
+            // Not JSON
+          }
+          throw new Error(errorMsg);
         }
-        throw new Error(`Invalid response format from server.`);
-      }
-
-      if (!response.ok) {
-        throw new Error(result.message || 'The server returned an error response.');
       }
       
       setSubmittedContact({
@@ -141,7 +149,7 @@ export default function App() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (error: any) {
       console.error('Error submitting specification:', error);
-      alert(error.message || 'There was an error submitting your specification. If you did not deploy the backend or SMTP variables yet, please review the deployment guidelines.');
+      alert(error.message || 'There was an error submitting your specification. Please make sure your Google Sheets Web App URL is correctly configured.');
     } finally {
       setIsSubmitting(false);
     }
