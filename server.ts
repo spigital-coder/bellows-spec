@@ -222,7 +222,38 @@ async function startServer() {
       `;
 
       // SMTP environment credentials
-      const { SMTP_HOST, SMTP_USER, SMTP_PASS, SMTP_PORT, SMTP_SECURE, SMTP_FROM_EMAIL, SMTP_TO_EMAIL } = process.env;
+      let SMTP_HOST = process.env.SMTP_HOST;
+      let SMTP_USER = process.env.SMTP_USER;
+      let SMTP_PASS = process.env.SMTP_PASS;
+      let SMTP_PORT = process.env.SMTP_PORT;
+      let SMTP_SECURE = process.env.SMTP_SECURE;
+      let SMTP_FROM_EMAIL = process.env.SMTP_FROM_EMAIL;
+      let SMTP_TO_EMAIL = process.env.SMTP_TO_EMAIL;
+
+      // Smart Fallback: Force Gmail SMTP if environment carries stale Exchange/Outlook details or is unconfigured
+      const hasStaleOutlook = SMTP_HOST && (SMTP_HOST.includes("outlook") || SMTP_HOST.includes("office365") || SMTP_HOST.includes("live") || SMTP_HOST.includes("hotmail"));
+      const hasStaleUser = SMTP_USER && (SMTP_USER.includes("bellows-systems") || SMTP_USER.includes("outlook") || SMTP_USER.includes("office365") || SMTP_USER.includes("hotmail"));
+      const isUnconfigured = !SMTP_HOST || !SMTP_USER || !SMTP_PASS || SMTP_HOST === "smtp.example.com";
+
+      if (hasStaleOutlook || hasStaleUser || isUnconfigured) {
+        console.log("\n[SMTP] Stale Office 365/Outlook credentials or unconfigured environment detected. Routing through active Gmail SMTP configuration:");
+        SMTP_HOST = "smtp.gmail.com";
+        SMTP_PORT = "587";
+        SMTP_USER = "bellowssystemss@gmail.com";
+        SMTP_PASS = "ylfd cqtq ngtu oiqe";
+        SMTP_SECURE = "false";
+        SMTP_FROM_EMAIL = "bellowssystemss@gmail.com";
+        SMTP_TO_EMAIL = "info@bellows-systems.com";
+      }
+
+      console.log("\n[SMTP Dispatch Request]");
+      console.log(`- SMTP_HOST: ${SMTP_HOST || "NOT SET"}`);
+      console.log(`- SMTP_PORT: ${SMTP_PORT || "NOT SET"}`);
+      console.log(`- SMTP_USER: ${SMTP_USER || "NOT SET"}`);
+      console.log(`- SMTP_SECURE: ${SMTP_SECURE || "NOT SET"}`);
+      console.log(`- SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL || "NOT SET"}`);
+      console.log(`- SMTP_TO_EMAIL: ${SMTP_TO_EMAIL || "NOT SET"}`);
+      console.log(`- SMTP_PASS length: ${SMTP_PASS ? SMTP_PASS.length : 0} characters\n`);
 
       if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
         console.warn("\n=================== SMTP WARNING ===================");
@@ -288,6 +319,15 @@ async function startServer() {
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Bellows server listening securely on port ${PORT}`);
+    console.log("\n--- Active Server-Side SMTP Configuration ---");
+    console.log(`SMTP_HOST: ${process.env.SMTP_HOST || "NOT SET"}`);
+    console.log(`SMTP_PORT: ${process.env.SMTP_PORT || "NOT SET"}`);
+    console.log(`SMTP_USER: ${process.env.SMTP_USER || "NOT SET"}`);
+    console.log(`SMTP_SECURE: ${process.env.SMTP_SECURE || "NOT SET"}`);
+    console.log(`SMTP_FROM_EMAIL: ${process.env.SMTP_FROM_EMAIL || "NOT SET"}`);
+    console.log(`SMTP_TO_EMAIL: ${process.env.SMTP_TO_EMAIL || "NOT SET"}`);
+    console.log(`SMTP_PASS length: ${process.env.SMTP_PASS ? process.env.SMTP_PASS.length : 0} characters`);
+    console.log("---------------------------------------------\n");
   });
 }
 
