@@ -87,8 +87,8 @@ export default function App() {
         return '/api/submit-spec';
       }
       // If hosted statically on spec.bellows-systems.com, but backend runs separately on a custom container,
-      // developers can configure VITE_BACKEND_URL. Default to relative.
-      return '/api/submit-spec';
+      // fallback to the live Cloud Run backend URL.
+      return 'https://ais-pre-qmfhz6b5k7lumnnooz2f5n-208026481765.asia-east1.run.app/api/submit-spec';
     };
 
     const payload = {
