@@ -1,254 +1,284 @@
+import "dotenv/config";
 import express from "express";
 import path from "path";
-import { google } from "googleapis";
+import nodemailer from "nodemailer";
+import { createServer as createViteServer } from "vite";
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT) || 3000;
 
-  // 1. Global CORS middleware: allow cross-origin requests from external web servers/hosts
-  // Must be registered BEFORE express.json() and any routing to handle preflight OPTIONS requests immediately.
+  // 1. Core middlewares
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
+
+  // 2. Clear CORS configuration for frontend integration
   app.use((req, res, next) => {
-    // Log incoming requests for server metrics/verification
-    console.log(`[${req.method}] ${req.path} - Origin: ${req.headers.origin || "None"}`);
+    const origin = req.headers.origin;
+    const allowedOrigins = [
+      "http://spec.bellows-systems.com",
+      "https://spec.bellows-systems.com",
+      "http://localhost:3000",
+      "http://localhost:5173",
+    ];
 
-    const origin = req.headers.origin || "https://spec.bellows-systems.com";
-    
-    // Check if the request origin matches the production domain or trusted local/sandboxed developer environments
-    const isAllowed = 
-      origin === "https://spec.bellows-systems.com" || 
-      origin === "http://localhost:5173" ||
-      origin === "http://127.0.0.1:5173" ||
-      origin.startsWith("http://localhost:") || 
-      origin.startsWith("http://127.0.0.1:") || 
-      origin.endsWith(".run.app");
+    if (origin && (allowedOrigins.includes(origin) || origin.endsWith(".run.app") || origin.endsWith(".web.app"))) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+    } else {
+      // Fallback/Default for other cross-origin setups or public integrations
+      res.setHeader("Access-Control-Allow-Origin", "*");
+    }
 
-    res.setHeader("Access-Control-Allow-Origin", isAllowed ? origin : "https://spec.bellows-systems.com");
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    
-    if (origin !== "*") {
-      res.setHeader("Access-Control-Allow-Credentials", "true");
-    }
-    
-    // Pre-flight Private Network Access headers if requested (Chrome spec)
-    if (req.headers['access-control-request-private-network']) {
-      res.setHeader('Access-Control-Allow-Private-Network', 'true');
-    }
+    res.setHeader("Access-Control-Allow-Credentials", "true");
 
-    // Intercept preflight OPTIONS request and return 204 (No Content)
+    // Handle preflight immediately
     if (req.method === "OPTIONS") {
-      res.setHeader("Content-Length", "0");
-      return res.status(204).end();
+      return res.sendStatus(204);
     }
     next();
   });
 
-  app.use(express.json());
-
-  // Health check endpoint (GET /health)
+  // Health check endpoint
   app.get("/health", (req, res) => {
-    res.json({
-      status: "running",
-      version: "cors-fix-v1"
-    });
+    res.status(200).json({ status: "healthy", timestamp: new Date().toISOString() });
   });
 
-  // Explicit global route handler for OPTIONS requests
-  app.options("*", (req, res) => {
-    const origin = req.headers.origin || "https://spec.bellows-systems.com";
-    const isAllowed = 
-      origin === "https://spec.bellows-systems.com" || 
-      origin === "http://localhost:5173" ||
-      origin === "http://127.0.0.1:5173" ||
-      origin.startsWith("http://localhost:") || 
-      origin.startsWith("http://127.0.0.1:") || 
-      origin.endsWith(".run.app");
-
-    res.setHeader("Access-Control-Allow-Origin", isAllowed ? origin : "https://spec.bellows-systems.com");
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    if (origin !== "*") {
-      res.setHeader("Access-Control-Allow-Credentials", "true");
-    }
-    return res.sendStatus(204);
-  });
-
-  // API Route: Submit directly to Google Sheets (supports both slash and no-slash paths to prevent redirection CORS drops)
+  // API submit endpoint for SMTP dispatch
   app.post(["/api/submit-spec", "/api/submit-spec/"], async (req, res) => {
     try {
       const data = req.body;
-      const spreadsheetId = process.env.GOOGLE_SHEET_ID;
-      const credentialsJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+      const timestamp = new Date().toLocaleString("en-US", { timeZone: "America/Chicago" });
 
-      if (!spreadsheetId || !credentialsJson) {
-        console.error("Google Sheets configuration is missing (GOOGLE_SHEET_ID or GOOGLE_SERVICE_ACCOUNT_JSON is not set). Data logged:", data);
-        return res.status(400).json({ 
-          status: "error", 
-          message: "Google Sheets configuration (GOOGLE_SHEET_ID or GOOGLE_SERVICE_ACCOUNT_JSON) is missing from server env. Please check your system settings."
-        });
-      }
-
-      let parsedCredentials;
-      try {
-        if (typeof credentialsJson === "string") {
-          const trimmed = credentialsJson.trim();
-          if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
-            parsedCredentials = JSON.parse(trimmed);
-          } else if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
-            // Unwrapping double-serialized JSON strings
-            const inner = JSON.parse(trimmed);
-            parsedCredentials = typeof inner === "string" ? JSON.parse(inner) : inner;
-          } else {
-            throw new Error("JSON structure is malformed or lacks typical braces.");
-          }
-        } else {
-          parsedCredentials = credentialsJson;
-        }
-      } catch (parseError: any) {
-        console.error("Failed to parse GOOGLE_SERVICE_ACCOUNT_JSON env variable:", parseError);
-        return res.status(400).json({
-          status: "error",
-          message: `Google Sheets configuration format is invalid: ${parseError.message || parseError}`
-        });
-      }
-
-      const auth = new google.auth.GoogleAuth({
-        credentials: parsedCredentials,
-        scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-      });
-
-      const sheets = google.sheets({ version: "v4", auth });
-
-      // Generate localized date/time; prefer client's regional value or default to US Central Time
-      const timestamp = data.submissionDate || new Date().toLocaleString("en-US", { timeZone: "America/Chicago" });
-
-      // Format checkboxes: only show checked items
+      // Build features list
       const selectedFeatures = Object.entries(data.optionalFeatures || {})
         .filter(([_, value]) => value === true)
         .map(([key, _]) => key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()))
-        .join(', ');
+        .join(", ") || "None";
 
-      // Headers for the sheet
-      const headers = [
-        "Timestamp",
-        "Style",
-        "Shape",
-        "Contact Name",
-        "Contact Phone",
-        "Contact Email",
-        "Company Name",
-        "Country",
-        "Dim A",
-        "Dim B",
-        "Dim C",
-        "Clamp Bar Width",
-        "Overall Belt Width",
-        "Corner Radius",
-        "Duct Dim D",
-        "Duct Dim W",
-        "Width Between Clamps",
-        "Flange",
-        "Duct Thickness",
-        "Duct Material",
-        "Pressure",
-        "Temperature",
-        "Axial Compression",
-        "Axial Expansion",
-        "Lateral Movement",
-        "Quantity",
-        "Notes",
-        "Optional Features"
-      ];
+      const contactName = data.contactDetails?.name || "N/A";
+      const contactEmail = data.contactDetails?.email || "N/A";
+      const companyName = data.contactDetails?.companyName || "N/A";
 
-      // Flatten the data for Google Sheets row
-      const row = [
-        timestamp,
-        data.selectedStyle,
-        data.shape,
-        data.contactDetails?.name || "",
-        data.contactDetails?.phone || "",
-        data.contactDetails?.email || "",
-        data.contactDetails?.companyName || "",
-        data.contactDetails?.country || "",
-        data.fabricDetails?.dimA || "",
-        data.fabricDetails?.dimB || "",
-        data.fabricDetails?.dimC || "",
-        data.fabricDetails?.clampBarWidth || "",
-        data.fabricDetails?.overallBeltWidth || "",
-        data.fabricDetails?.cornerRadius || "",
-        data.ductInfo?.dimD || "",
-        data.ductInfo?.dimW || "",
-        data.ductInfo?.widthBetweenClamps || "",
-        data.ductInfo?.flange || "",
-        data.ductInfo?.ductThickness || "",
-        data.ductInfo?.ductMaterial || "",
-        data.design?.pressure || "",
-        data.design?.temperature || "",
-        data.movements?.axialCompression || "",
-        data.movements?.axialExpansion || "",
-        data.movements?.lateral || "",
-        data.quantity || "",
-        data.applicationNotes || "",
-        selectedFeatures
-      ];
+      // Subject line
+      const subject = `New Expansion Joint Spec Submission: ${contactName} (${companyName})`;
 
-      // To ensure any newly added fields (like contact details or quantity) are correctly represented in the Google Sheet 
-      // even if the spreadsheet was already created previously, we dynamically write or update the header row (Row 1) with 
-      // the complete set of headers on every submission. This extends/updates columns without clearing existing row data under it.
-      try {
-        await sheets.spreadsheets.values.update({
-          spreadsheetId,
-          range: "Sheet1!A1",
-          valueInputOption: "RAW",
-          requestBody: {
-            values: [headers],
-          },
+      // Beautiful design email layout ("Mailer type Design Send")
+      const htmlContent = `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 650px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05); color: #1e293b;">
+          
+          <!-- Header Banner -->
+          <div style="background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%); padding: 32px 24px; text-align: center; color: #ffffff; border-bottom: 4px solid #2563eb;">
+            <p style="margin: 0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; color: #60a5fa;">Bellows Systems Specification Portal</p>
+            <h1 style="margin: 8px 0 0 0; font-size: 24px; font-weight: 800; tracking: -0.025em; line-height: 1.2;">Expansion Joint Specifications</h1>
+            <p style="margin: 12px 0 0 0; font-size: 13px; color: #94a3b8;"><strong>Submission Time:</strong> ${timestamp} (CT)</p>
+          </div>
+
+          <!-- Content Wrapper -->
+          <div style="padding: 24px;">
+
+            <!-- Contact section -->
+            <div style="margin-bottom: 24px; padding: 20px; border-radius: 8px; background-color: #f8fafc; border: 1px solid #e2e8f0;">
+              <h3 style="margin: 0 0 16px 0; font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; color: #1e3a8a; font-weight: 700; border-bottom: 1px solid #cbd5e1; padding-bottom: 6px;">Client & Contact Details</h3>
+              <table style="width: 100%; border-collapse: collapse; font-size: 14px; line-height: 1.6;">
+                <tr>
+                  <td style="padding: 6px 0; color: #64748b; width: 35%;"><strong>Name</strong></td>
+                  <td style="padding: 6px 0; color: #0f172a; font-weight: 600;">${contactName}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 6px 0; color: #64748b;"><strong>Email</strong></td>
+                  <td style="padding: 6px 0; color: #2563eb; font-weight: 600;"><a href="mailto:${contactEmail}" style="color: #2563eb; text-decoration: none;">${contactEmail}</a></td>
+                </tr>
+                <tr>
+                  <td style="padding: 6px 0; color: #64748b;"><strong>Phone</strong></td>
+                  <td style="padding: 6px 0; color: #0f172a;">${data.contactDetails?.phone || "N/A"}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 6px 0; color: #64748b;"><strong>Company Name</strong></td>
+                  <td style="padding: 6px 0; color: #0f172a;">${companyName}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 6px 0; color: #64748b;"><strong>Country</strong></td>
+                  <td style="padding: 6px 0; color: #0f172a;">${data.contactDetails?.country || "N/A"}</td>
+                </tr>
+              </table>
+            </div>
+
+            <!-- Specifications Section -->
+            <div style="margin-bottom: 24px;">
+              <h3 style="margin: 0 0 12px 0; font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; color: #1e3a8a; font-weight: 700; border-bottom: 1px solid #cbd5e1; padding-bottom: 6px;">Design & Geometry</h3>
+              <table style="width: 100%; border-collapse: collapse; font-size: 14px; line-height: 1.5; border: 1px solid #f1f5f9;">
+                <tr style="background-color: #f8fafc;">
+                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #64748b; width: 45%;"><strong>Style</strong></td>
+                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #0f172a; font-weight: 600;">${data.selectedStyle || "N/A"}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #64748b;"><strong>Shape</strong></td>
+                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">${data.shape || "N/A"}</td>
+                </tr>
+                <tr style="background-color: #f8fafc;">
+                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #64748b;"><strong>Fabric Dimensions</strong></td>
+                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #0f172a; font-family: monospace;">
+                    A: ${data.fabricDetails?.dimA || "—"} |
+                    B: ${data.fabricDetails?.dimB || "—"} |
+                    C: ${data.fabricDetails?.dimC || "—"}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #64748b;"><strong>Overall Belt Width</strong></td>
+                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">${data.fabricDetails?.overallBeltWidth || "N/A"}</td>
+                </tr>
+                <tr style="background-color: #f8fafc;">
+                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #64748b;"><strong>Clamp Bar / Corner Rad</strong></td>
+                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">
+                    Clamps: ${data.fabricDetails?.clampBarWidth || "—"} | Radius: ${data.fabricDetails?.cornerRadius || "—"}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #64748b;"><strong>Duct Dimensions (D & W)</strong></td>
+                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">
+                    D: ${data.ductInfo?.dimD || "—"} x W: ${data.ductInfo?.dimW || "—"}
+                  </td>
+                </tr>
+                <tr style="background-color: #f8fafc;">
+                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #64748b;"><strong>Width Between Clamps / Flange</strong></td>
+                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">
+                    Clamps Width: ${data.ductInfo?.widthBetweenClamps || "—"} | Flange: ${data.ductInfo?.flange || "—"}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #64748b;"><strong>Duct Material & Thickness</strong></td>
+                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">
+                    ${data.ductInfo?.ductMaterial || "—"} (${data.ductInfo?.ductThickness || "—"})
+                  </td>
+                </tr>
+              </table>
+            </div>
+
+            <!-- Operating Parameters Section -->
+            <div style="margin-bottom: 24px;">
+              <h3 style="margin: 0 0 12px 0; font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; color: #1e3a8a; font-weight: 700; border-bottom: 1px solid #cbd5e1; padding-bottom: 6px;">Operating Conditions & Quantity</h3>
+              <table style="width: 100%; border-collapse: collapse; font-size: 14px; line-height: 1.5; border: 1px solid #f1f5f9;">
+                <tr style="background-color: #f8fafc;">
+                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #64748b; width: 45%;"><strong>Design Pressure</strong></td>
+                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">${data.design?.pressure || "N/A"}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #64748b;"><strong>Design Temperature</strong></td>
+                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">${data.design?.temperature || "N/A"}</td>
+                </tr>
+                <tr style="background-color: #f8fafc;">
+                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #64748b;"><strong>Axial Compression / Expansion</strong></td>
+                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">
+                    Comp: ${data.movements?.axialCompression || "—"} | Exp: ${data.movements?.axialExpansion || "—"}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #64748b;"><strong>Lateral Deflection</strong></td>
+                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">${data.movements?.lateral || "N/A"}</td>
+                </tr>
+                <tr style="background-color: #f8fafc;">
+                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #64748b;"><strong>Requested Quantity</strong></td>
+                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #1e3a8a; font-weight: 700; font-size: 16px;">${data.quantity || "1"}</td>
+                </tr>
+              </table>
+            </div>
+
+            <!-- Optional Features Segment -->
+            ${selectedFeatures !== "None" ? `
+            <div style="margin-bottom: 24px; padding: 16px; border-radius: 8px; background-color: #ecfdf5; border: 1px solid #a7f3d0;">
+              <h4 style="margin: 0 0 8px 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: #065f46; font-weight: 700;">Selected Add-ons / Features</h4>
+              <p style="margin: 0; font-size: 14px; color: #047857; line-height: 1.5; font-weight: 500;">${selectedFeatures}</p>
+            </div>
+            ` : ""}
+
+            <!-- Application Notes -->
+            ${data.applicationNotes ? `
+            <div style="margin-bottom: 24px; padding: 18px; border-radius: 8px; background-color: #f8fafc; border: 1px solid #e2e8f0;">
+              <h4 style="margin: 0 0 8px 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: #475569; font-weight: 700;">Client Comments & Context NOTES</h4>
+              <p style="margin: 0; font-size: 14px; color: #334155; white-space: pre-wrap; line-height: 1.6;">${data.applicationNotes}</p>
+            </div>
+            ` : ""}
+
+          </div>
+
+          <!-- Professional Footer -->
+          <div style="background-color: #f1f5f9; border-top: 1px solid #e2e8f0; padding: 20px 24px; text-align: center; font-size: 11px; color: #64748b; line-height: 1.5;">
+            <p style="margin: 0; font-weight: 600;">This specification catalog dispatch was processed securely by your Server.</p>
+            <p style="margin: 4px 0 0 0;">Bellows Systems, Inc. © ${new Date().getFullYear()} — Engineering Excellence</p>
+          </div>
+
+        </div>
+      `;
+
+      // SMTP environment credentials
+      const { SMTP_HOST, SMTP_USER, SMTP_PASS, SMTP_PORT, SMTP_SECURE, SMTP_FROM_EMAIL, SMTP_TO_EMAIL } = process.env;
+
+      if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
+        console.warn("\n=================== SMTP WARNING ===================");
+        console.warn("SMTP settings are unconfigured or incomplete.");
+        console.warn("Please set environment variables: SMTP_HOST, SMTP_USER, SMTP_PASS");
+        console.warn("Here is the parsed data that would have been sent:\n", JSON.stringify(data, null, 2));
+        console.warn("====================================================\n");
+
+        return res.status(200).json({
+          status: "success",
+          message: "Form saved successfully! (Note: Server is running in Demo Mode since SMTP credentials are not configured in your Environment variables completely. Submission printed to console.)",
         });
-      } catch (headerErr) {
-        console.warn("Could not dynamically update header row (Sheet1!A1):", headerErr);
       }
 
-      // Appending the filled spec entry row at the end of the sheet
-      await sheets.spreadsheets.values.append({
-        spreadsheetId,
-        range: "Sheet1!A1",
-        valueInputOption: "RAW",
-        requestBody: {
-          values: [row],
+      // Configure nodemailer transporter
+      const transporter = nodemailer.createTransport({
+        host: SMTP_HOST,
+        port: Number(SMTP_PORT) || 587,
+        secure: SMTP_SECURE === "true", // true for 465, false for 587
+        auth: {
+          user: SMTP_USER,
+          pass: SMTP_PASS,
         },
       });
 
-      res.status(200).json({ status: "success", message: "Successfully saved to Google Sheets" });
-    } catch (error: any) {
-      console.error("Error submitting spec or updating sheets:", error);
-      const errorMsg = error?.message || String(error);
-      res.status(500).json({ 
-        status: "error", 
-        message: `Failed to save specification to Google Sheets: ${errorMsg}` 
+      const sendFrom = SMTP_FROM_EMAIL || SMTP_USER;
+      const sendTo = SMTP_TO_EMAIL || "info@bellows-systems.com"; // Default target
+
+      await transporter.sendMail({
+        from: `"Bellows Spec Portal" <${sendFrom}>`,
+        to: sendTo,
+        replyTo: contactEmail,
+        subject: subject,
+        html: htmlContent,
+      });
+
+      console.log(`[Email Sent Success] Submitted specification sent cleanly to ${sendTo}`);
+      return res.status(200).json({ status: "success", message: "Specification submitted and email sent successfully." });
+
+    } catch (err: any) {
+      console.error("[Email Dispatch Crash Error]:", err);
+      return res.status(500).json({
+        status: "error",
+        message: `Failed to compile or dispatch email specification: ${err.message || String(err)}`
       });
     }
   });
 
-  // Vite middleware for development
+  // 3. Setup static serving (Vite HMR in dev, standard compiled dist folder in production)
   if (process.env.NODE_ENV !== "production") {
-    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
   } else {
-    // Production: Serve static files from dist
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
-    app.get("*", (req, res) => {
+    app.get("*all", (req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`Bellows server listening securely on port ${PORT}`);
   });
 }
 

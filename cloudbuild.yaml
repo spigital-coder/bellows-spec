@@ -1,0 +1,50 @@
+# Google Cloud Build configuration file for building and deploying the application to Google Cloud Run.
+# You can trigger this using: gcloud builds submit --config cloudbuild.yaml
+
+steps:
+  # Step 1: Build the container image using the Dockerfile
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Build Container'
+    args: 
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/bellows-spec-api:$COMMIT_SHA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/bellows-spec-api:latest'
+      - '.'
+
+  # Step 2: Push the built image to Google Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Push Image: Commit SHA'
+    args: 
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/bellows-spec-api:$COMMIT_SHA'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Push Image: Latest'
+    args: 
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/bellows-spec-api:latest'
+
+  # Step 3: Deploy to Google Cloud Run (Fully Managed Serverless Environment)
+  # - Regionalized to 'us-central1' (can be changed based on preference)
+  # - App listens on $PORT, configured dynamically by Cloud Run
+  # - Allows unauthenticated public traffic (Access via public domain with CORS)
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'Deploy to Cloud Run'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'bellows-spec-api'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/bellows-spec-api:$COMMIT_SHA'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+
+images:
+  - 'gcr.io/$PROJECT_ID/bellows-spec-api:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/bellows-spec-api:latest'

@@ -76,33 +76,32 @@ export default function App() {
     e.preventDefault();
     setIsSubmitting(true);
     
-    // Auto-detect routing path: if host is a static or external custom domain (like spec.bellows-systems.com),
-    // forward the payload to the live full-stack container on Cloud Run with CORS support.
+    // Auto-detect routing path: if they set VITE_BACKEND_URL, use it. Otherwise use absolute/relative logic.
     const getApiUrl = () => {
       const customUrl = (import.meta as any).env?.VITE_BACKEND_URL;
       if (customUrl) return customUrl;
 
       const origin = window.location.origin;
+      // If it is running on a managed or local platform (including AI Studio), relative paths work seamlessly.
       if (origin.includes('localhost') || origin.includes('127.0.0.1') || origin.includes('run.app')) {
         return '/api/submit-spec';
       }
-      return 'https://ais-pre-qmfhz6b5k7lumnnooz2f5n-208026481765.asia-east1.run.app/api/submit-spec';
+      // If hosted statically on spec.bellows-systems.com, but backend runs separately on a custom container,
+      // developers can configure VITE_BACKEND_URL. Default to relative.
+      return '/api/submit-spec';
     };
-    
-    // Generate an elegant, human-readable date and time on the client-side
-    const localSubmissionDate = new Date().toLocaleString('en-US', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: true
-    });
 
     const payload = {
       ...formData,
-      submissionDate: localSubmissionDate
+      submissionDate: new Date().toLocaleString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+      })
     };
     
     try {
@@ -115,21 +114,17 @@ export default function App() {
         body: JSON.stringify(payload),
       });
 
-      // Safely read response text first to handle non-JSON error pages gracefully
       const responseText = await response.text();
       let result: any = {};
       
       try {
         result = JSON.parse(responseText);
-      } catch (parseError) {
-        // If it starts with '<' or we can't parse it as JSON, the server likely returned an HTML error page (e.g., 404/405/502)
+      } catch {
         if (responseText.trim().startsWith('<') || response.status >= 400) {
-          throw new Error(`Server returned HTTP ${response.status}: ${response.statusText || 'Unable to parse server response.'}. Please verify your domain's backend is running.`);
+          throw new Error(`Server returned HTTP ${response.status}: Unable to parse response.`);
         }
-        throw new Error(`Invalid response format from server: ${responseText.substring(0, 100)}`);
+        throw new Error(`Invalid response format from server.`);
       }
-
-      console.log('Submission result:', result);
 
       if (!response.ok) {
         throw new Error(result.message || 'The server returned an error response.');
@@ -146,7 +141,7 @@ export default function App() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (error: any) {
       console.error('Error submitting specification:', error);
-      alert(error.message || 'There was an error submitting your specification. Please try again.');
+      alert(error.message || 'There was an error submitting your specification. If you did not deploy the backend or SMTP variables yet, please review the deployment guidelines.');
     } finally {
       setIsSubmitting(false);
     }
