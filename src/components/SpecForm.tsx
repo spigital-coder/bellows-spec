@@ -1,17 +1,155 @@
 import React from 'react';
-import { SpecFormData } from '../types';
+import { SpecFormData, FormErrors } from '../types';
 import { JointTechnicalDiagram } from './JointTechnicalDiagram';
-import { Circle, Square, User } from 'lucide-react';
+import { Circle, Square, User, Ruler, Wind, Activity, Sliders } from 'lucide-react';
 import { motion } from 'motion/react';
 import { JOINT_TYPES } from '../constants';
+
+export const validateForm = (formData: SpecFormData): FormErrors => {
+  const errors: FormErrors = {};
+
+  const checkRequired = (val: string, key: string, label: string) => {
+    if (!val || val.trim() === '') {
+      errors[key] = `${label} is required.`;
+    }
+  };
+
+  // 1. Required checks
+  checkRequired(formData.fabricDetails.dimA, 'fabricDetails.dimA', formData.shape === 'circular' ? '"A" Inside Diameter' : '"A" Inside Belt Dim.');
+  if (formData.shape === 'rectangular') {
+    checkRequired(formData.fabricDetails.dimB, 'fabricDetails.dimB', '"B" Inside Belt Dim.');
+  }
+  checkRequired(formData.fabricDetails.dimC, 'fabricDetails.dimC', '"C" Width Between Clamp Bars');
+  checkRequired(formData.fabricDetails.clampBarWidth, 'fabricDetails.clampBarWidth', 'Width of Clamp Bars');
+  checkRequired(formData.fabricDetails.overallBeltWidth, 'fabricDetails.overallBeltWidth', 'Overall Belt Width');
+
+  checkRequired(formData.ductInfo.dimD, 'ductInfo.dimD', '"D" (One Side or Dia.)');
+  if (formData.shape === 'rectangular') {
+    checkRequired(formData.ductInfo.dimW, 'ductInfo.dimW', '"W" (Other Side)');
+  }
+  checkRequired(formData.ductInfo.widthBetweenClamps, 'ductInfo.widthBetweenClamps', 'Width Between Clamps');
+
+  checkRequired(formData.design.pressure, 'design.pressure', 'Pressure');
+  checkRequired(formData.design.temperature, 'design.temperature', 'Temperature');
+  checkRequired(formData.quantity, 'quantity', 'Quantity Required');
+
+  checkRequired(formData.contactDetails.name, 'contactDetails.name', 'Contact Name');
+  checkRequired(formData.contactDetails.phone, 'contactDetails.phone', 'Phone Number');
+  checkRequired(formData.contactDetails.email, 'contactDetails.email', 'Email Address');
+  checkRequired(formData.contactDetails.companyName, 'contactDetails.companyName', 'Company Name');
+  checkRequired(formData.contactDetails.country, 'contactDetails.country', 'Country');
+
+  // 2. Format checks (only run if field has value)
+  const name = formData.contactDetails.name;
+  if (name && name.trim() !== '') {
+    if (!/^[A-Za-z\s]+$/.test(name)) {
+      errors['contactDetails.name'] = 'Contact Name must contain only letters and spaces.';
+    }
+  }
+
+  const phone = formData.contactDetails.phone;
+  if (phone && phone.trim() !== '') {
+    if (!/^[0-9\s+\-()]+$/.test(phone)) {
+      errors['contactDetails.phone'] = 'Phone must contain only numbers and phone symbols (+ - ( )).';
+    }
+  }
+
+  const companyName = formData.contactDetails.companyName;
+  if (companyName && companyName.trim() !== '') {
+    if (!/^[A-Za-z\s]+$/.test(companyName)) {
+      errors['contactDetails.companyName'] = 'Company Name must contain only letters and spaces.';
+    }
+  }
+
+  const country = formData.contactDetails.country;
+  if (country && country.trim() !== '') {
+    if (!/^[A-Za-z\s]+$/.test(country)) {
+      errors['contactDetails.country'] = 'Country must contain only letters and spaces.';
+    }
+  }
+
+  const ductMaterial = formData.ductInfo.ductMaterial;
+  if (ductMaterial && ductMaterial.trim() !== '') {
+    if (!/^[A-Za-z\s]+$/.test(ductMaterial)) {
+      errors['ductInfo.ductMaterial'] = 'Duct Material must contain only letters and spaces.';
+    }
+  }
+
+  // Number format validator
+  const isNumber = (val: string) => {
+    if (!val || val.trim() === '') return true;
+    return /^[+-]?[0-9]+(?:\.[0-9]+)?$/.test(val.trim());
+  };
+
+  if (formData.fabricDetails.dimA && !isNumber(formData.fabricDetails.dimA)) {
+    errors['fabricDetails.dimA'] = 'Must be a valid number.';
+  }
+  if (formData.shape === 'rectangular' && formData.fabricDetails.dimB && !isNumber(formData.fabricDetails.dimB)) {
+    errors['fabricDetails.dimB'] = 'Must be a valid number.';
+  }
+  if (formData.fabricDetails.dimC && !isNumber(formData.fabricDetails.dimC)) {
+    errors['fabricDetails.dimC'] = 'Must be a valid number.';
+  }
+  if (formData.fabricDetails.clampBarWidth && !isNumber(formData.fabricDetails.clampBarWidth)) {
+    errors['fabricDetails.clampBarWidth'] = 'Must be a valid number.';
+  }
+  if (formData.fabricDetails.overallBeltWidth && !isNumber(formData.fabricDetails.overallBeltWidth)) {
+    errors['fabricDetails.overallBeltWidth'] = 'Must be a valid number.';
+  }
+  if (formData.shape === 'rectangular' && formData.fabricDetails.cornerRadius && !isNumber(formData.fabricDetails.cornerRadius)) {
+    errors['fabricDetails.cornerRadius'] = 'Must be a valid number.';
+  }
+
+  if (formData.ductInfo.dimD && !isNumber(formData.ductInfo.dimD)) {
+    errors['ductInfo.dimD'] = 'Must be a valid number.';
+  }
+  if (formData.shape === 'rectangular' && formData.ductInfo.dimW && !isNumber(formData.ductInfo.dimW)) {
+    errors['ductInfo.dimW'] = 'Must be a valid number.';
+  }
+  if (formData.ductInfo.widthBetweenClamps && !isNumber(formData.ductInfo.widthBetweenClamps)) {
+    errors['ductInfo.widthBetweenClamps'] = 'Must be a valid number.';
+  }
+  if (formData.ductInfo.flange && !isNumber(formData.ductInfo.flange)) {
+    errors['ductInfo.flange'] = 'Must be a valid number.';
+  }
+  if (formData.ductInfo.ductThickness && !isNumber(formData.ductInfo.ductThickness)) {
+    errors['ductInfo.ductThickness'] = 'Must be a valid number.';
+  }
+
+  if (formData.design.pressure && !isNumber(formData.design.pressure)) {
+    errors['design.pressure'] = 'Must be a valid number.';
+  }
+  if (formData.design.temperature && !isNumber(formData.design.temperature)) {
+    errors['design.temperature'] = 'Must be a valid number.';
+  }
+  if (formData.movements.axialCompression && !isNumber(formData.movements.axialCompression)) {
+    errors['movements.axialCompression'] = 'Must be a valid number.';
+  }
+  if (formData.movements.axialExpansion && !isNumber(formData.movements.axialExpansion)) {
+    errors['movements.axialExpansion'] = 'Must be a valid number.';
+  }
+  if (formData.movements.lateral && !isNumber(formData.movements.lateral)) {
+    errors['movements.lateral'] = 'Must be a valid number.';
+  }
+  if (formData.quantity && !isNumber(formData.quantity)) {
+    errors['quantity'] = 'Quantity must be a valid number.';
+  }
+
+  return errors;
+};
 
 interface Props {
   formData: SpecFormData;
   setFormData: React.Dispatch<React.SetStateAction<SpecFormData>>;
+  errors: FormErrors;
+  setErrors: React.Dispatch<React.SetStateAction<FormErrors>>;
+  showErrors: boolean;
 }
 
 const SpecFormContext = React.createContext<{
   formData: SpecFormData;
+  errors: FormErrors;
+  showErrors: boolean;
   handleChange: (section: keyof SpecFormData, field: string, value: any) => void;
 } | null>(null);
 
@@ -28,20 +166,30 @@ interface InputFieldProps {
 const InputField: React.FC<InputFieldProps> = ({ label, section, field, placeholder, disabled, required, type }) => {
   const context = React.useContext(SpecFormContext);
   if (!context) return null;
-  const { formData, handleChange } = context;
+  const { formData, errors, showErrors, handleChange } = context;
   const isObject = typeof formData[section] === 'object';
   const value = isObject ? (formData[section] as any)[field] : formData[section];
   
   const hasValue = value !== undefined && value !== null && String(value).trim().length > 0;
+  
+  const errorKey = isObject ? `${String(section)}.${field}` : String(section);
+  const errorMsg = (showErrors || hasValue) ? errors[errorKey] : undefined;
 
   return (
     <div className={`flex flex-col gap-1.5 transition-all duration-300 ${disabled ? 'opacity-30 pointer-events-none' : ''}`}>
       <div className="flex items-center justify-between">
-        <label className={`text-[11px] font-bold uppercase tracking-widest transition-colors ${hasValue ? 'text-brand' : 'text-slate-500'}`}>
+        <label className={`text-[11px] font-bold uppercase tracking-widest transition-colors ${
+          errorMsg && !disabled
+            ? 'text-red-500' 
+            : hasValue && !disabled ? 'text-brand' : 'text-slate-500'
+        }`}>
           {label} {required && <span className="text-red-500 font-semibold">*</span>}
         </label>
-        {hasValue && !disabled && (
+        {hasValue && !disabled && !errorMsg && (
           <span className="text-[9px] font-extrabold uppercase tracking-widest text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">Filled</span>
+        )}
+        {errorMsg && !disabled && (
+          <span className="text-[9px] font-extrabold uppercase tracking-widest text-red-600 bg-red-50 px-1.5 py-0.5 rounded">Error</span>
         )}
       </div>
       <div className="relative">
@@ -53,31 +201,38 @@ const InputField: React.FC<InputFieldProps> = ({ label, section, field, placehol
           placeholder={placeholder}
           disabled={disabled}
           className={`w-full rounded-xl border px-4 py-3 text-base text-slate-900 shadow-sm transition-all placeholder:text-slate-300 focus:ring-4 focus:outline-none disabled:cursor-not-allowed ${
-            hasValue 
-              ? 'border-emerald-200 bg-emerald-50/10 focus:border-emerald-500 focus:ring-emerald-500/5' 
-              : 'border-slate-200 bg-white focus:border-brand focus:ring-brand/5'
+            errorMsg && !disabled
+              ? 'border-red-300 bg-red-50/10 focus:border-red-500 focus:ring-red-500/5'
+              : hasValue 
+                ? 'border-emerald-200 bg-emerald-50/10 focus:border-emerald-500 focus:ring-emerald-500/5' 
+                : 'border-slate-200 bg-white focus:border-brand focus:ring-brand/5'
           } hover:border-slate-300`}
         />
       </div>
+      {errorMsg && !disabled && (
+        <span className="text-xs text-red-500 font-medium animate-fade-in mt-1">{errorMsg}</span>
+      )}
     </div>
   );
 };
 
-export const SpecForm: React.FC<Props> = ({ formData, setFormData }) => {
+export const SpecForm: React.FC<Props> = ({ formData, setFormData, errors, setErrors, showErrors }) => {
   const handleChange = (section: keyof SpecFormData, field: string, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      [section]: typeof prev[section] === 'object' 
-        ? { ...(prev[section] as any), [field]: value }
+    const updated = {
+      ...formData,
+      [section]: typeof formData[section] === 'object' 
+        ? { ...(formData[section] as any), [field]: value }
         : value
-    }));
+    };
+    setFormData(updated);
+    setErrors(validateForm(updated));
   };
 
   const isCircular = formData.shape === 'circular';
   const selectedJoint = JOINT_TYPES.find(j => j.id === formData.selectedStyle);
 
   return (
-    <SpecFormContext.Provider value={{ formData, handleChange }}>
+    <SpecFormContext.Provider value={{ formData, errors, showErrors, handleChange }}>
       <div className="space-y-8">
       {/* Shape Selector & Technical Diagrams */}
       <div className="space-y-6">
@@ -153,7 +308,7 @@ export const SpecForm: React.FC<Props> = ({ formData, setFormData }) => {
           <section className="space-y-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
             <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/10 text-brand">
-                <Square size={20} />
+                <Ruler size={20} />
               </div>
               <div>
                 <h2 className="font-sans text-xl font-bold text-slate-900">Fabric Details</h2>
@@ -193,7 +348,7 @@ export const SpecForm: React.FC<Props> = ({ formData, setFormData }) => {
           <section className="space-y-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
             <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/10 text-brand">
-                <Circle size={20} />
+                <Wind size={20} />
               </div>
               <div>
                 <h2 className="font-sans text-xl font-bold text-slate-900">Duct Info</h2>
@@ -227,7 +382,7 @@ export const SpecForm: React.FC<Props> = ({ formData, setFormData }) => {
           <section className="space-y-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
             <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/10 text-brand">
-                <motion.div animate={{ rotate: 90 }}><Square size={20} /></motion.div>
+                <Activity size={20} />
               </div>
               <div>
                 <h2 className="font-sans text-xl font-bold text-slate-900">Design & Movements</h2>
@@ -248,7 +403,7 @@ export const SpecForm: React.FC<Props> = ({ formData, setFormData }) => {
           <section className="space-y-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
             <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/10 text-brand">
-                <Square size={20} strokeWidth={3} />
+                <Sliders size={20} />
               </div>
               <div>
                 <h2 className="font-sans text-xl font-bold text-slate-900">Optional Features & Notes</h2>

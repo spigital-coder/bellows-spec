@@ -59,3 +59,7 @@ export interface JointType {
   image?: string;
   technicalImage?: string;
 }
+
+export interface FormErrors {
+  [key: string]: string;
+}

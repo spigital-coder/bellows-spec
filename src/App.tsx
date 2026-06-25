@@ -9,12 +9,13 @@ import {
   CheckCircle2,
   Factory,
   MapPin,
-  Globe
+  Globe,
+  Rocket
 } from 'lucide-react';
 import { JOINT_TYPES } from './constants';
-import { SpecFormData } from './types';
+import { SpecFormData, FormErrors } from './types';
 import { ExpansionJointCard } from './components/ExpansionJointCard';
-import { SpecForm } from './components/SpecForm';
+import { SpecForm, validateForm } from './components/SpecForm';
 
 const initialFormData: SpecFormData = {
   selectedStyle: 'FE-10',
@@ -65,6 +66,8 @@ export default function App() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<'performance' | 'movement'>('performance');
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [showErrors, setShowErrors] = useState(false);
   const [submittedContact, setSubmittedContact] = useState<{
     name: string;
     email: string;
@@ -74,6 +77,17 @@ export default function App() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate form prior to submit
+    const validationErrors = validateForm(formData);
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      setShowErrors(true);
+      alert("Please fill in all required fields and correct any errors in the form (invalid fields are marked in red).");
+      document.getElementById('spec-form')?.scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
+
     setIsSubmitting(true);
     
     // Auto-detect routing path: if they set VITE_GOOGLE_SCRIPT_URL, they can submit directly from the client.
@@ -440,12 +454,18 @@ export default function App() {
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-12">
-                  <SpecForm formData={formData} setFormData={setFormData} />
+                  <SpecForm 
+                    formData={formData} 
+                    setFormData={setFormData} 
+                    errors={errors} 
+                    setErrors={setErrors} 
+                    showErrors={showErrors} 
+                  />
                   
                   <div className="flex flex-col items-center justify-center gap-8 border-t border-slate-100 bg-slate-50/30 py-16 px-6 rounded-3xl animate-fade-in">
                     <div className="flex flex-col items-center gap-3 text-center">
                       <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand/10 text-brand">
-                        <Info size={24} />
+                        <Rocket size={24} className="animate-pulse" />
                       </div>
                       <h3 className="text-xl font-bold text-slate-900">Ready to Submit?</h3>
                       <p className="max-w-md text-base leading-relaxed text-slate-500">
