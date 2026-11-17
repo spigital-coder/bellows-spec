@@ -1,13 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  Settings, 
   FileText, 
   Send, 
   ChevronRight, 
-  Info, 
   CheckCircle2,
-  Factory,
   MapPin,
   Globe,
   Rocket
@@ -16,6 +13,14 @@ import { JOINT_TYPES } from './constants';
 import { SpecFormData, FormErrors } from './types';
 import { ExpansionJointCard } from './components/ExpansionJointCard';
 import { SpecForm, validateForm } from './components/SpecForm';
+import { ProductPhotoGallery } from './components/ProductPhotoGallery';
+
+type AppRoute = 'home' | 'product-photos';
+
+const getRouteFromPath = (pathname: string): AppRoute => {
+  const normalized = pathname.replace(/\/+$/, '') || '/';
+  return normalized === '/product-photos' ? 'product-photos' : 'home';
+};
 
 const initialFormData: SpecFormData = {
   selectedStyle: 'FE-10',
@@ -62,6 +67,9 @@ const initialFormData: SpecFormData = {
 };
 
 export default function App() {
+  const [currentRoute, setCurrentRoute] = useState<AppRoute>(() =>
+    getRouteFromPath(window.location.pathname)
+  );
   const [formData, setFormData] = useState<SpecFormData>(initialFormData);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -74,6 +82,37 @@ export default function App() {
     companyName: string;
     style: string;
   } | null>(null);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentRoute(getRouteFromPath(window.location.pathname));
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  useEffect(() => {
+    document.title =
+      currentRoute === 'product-photos'
+        ? 'Photo Gallery | Bellows Systems'
+        : 'Fabric Expansion Joint Configurator | Bellows Systems';
+  }, [currentRoute]);
+
+  const navigate = (path: '/' | '/product-photos', scrollTargetId?: string) => {
+    const targetRoute = getRouteFromPath(path);
+    if (window.location.pathname !== path) {
+      window.history.pushState({}, '', path);
+    }
+    setCurrentRoute(targetRoute);
+    setIsSubmitted(false);
+    if (scrollTargetId) {
+      setTimeout(() => {
+        document.getElementById(scrollTargetId)?.scrollIntoView({ behavior: 'smooth' });
+      }, 60);
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -173,32 +212,90 @@ export default function App() {
     <div className="min-h-screen bg-slate-50/50 font-sans text-slate-900">
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-slate-800 bg-slate-900/95 backdrop-blur-md text-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <a href="https://www.bellows-systems.com/" onClick={() => setIsSubmitted(false)} className="flex items-center gap-3 transition-opacity hover:opacity-80">
-            <img 
-              src="https://www.bellows-systems.com/wp-content/uploads/2020/04/BS-Logo-White.png.webp" 
-              alt="Bellows Systems Logo" 
-              className="h-8 w-auto md:h-10"
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 sm:gap-8 px-4 sm:px-6 py-3.5">
+          {/* Zone 1: Brand */}
+          <a
+            href="/"
+            onClick={(e) => {
+              e.preventDefault();
+              navigate('/');
+            }}
+            className="flex items-center shrink-0 transition-opacity hover:opacity-80"
+          >
+            <img
+              src="https://www.bellows-systems.com/wp-content/uploads/2020/04/BS-Logo-White.png.webp"
+              alt="Bellows Systems Logo"
+              className="h-8 w-auto md:h-9"
               referrerPolicy="no-referrer"
             />
           </a>
-          
-          <nav className="flex items-center gap-4">
-            <a 
-              href="https://www.bellows-systems.com/" 
-              className="flex items-center gap-2 rounded-full border border-white/20 px-4 py-2 text-sm font-bold text-white transition-all hover:bg-white hover:text-slate-900 md:px-5 md:py-2 md:text-base"
+
+          {/* Zone 2: Navigation Links */}
+          <nav className="flex items-center gap-4 sm:gap-7 text-sm font-medium">
+            <a
+              href="/"
+              onClick={(e) => {
+                e.preventDefault();
+                navigate('/');
+              }}
+              className={`whitespace-nowrap shrink-0 transition-colors hover:text-white ${
+                currentRoute === 'home'
+                  ? 'text-white underline decoration-brand decoration-2 underline-offset-8'
+                  : 'text-slate-300'
+              }`}
             >
-              <Globe size={16} className="md:hidden" />
-              <span className="hidden md:inline">Back To Website</span>
-              <span className="md:hidden">Website</span>
+              Configurator
+            </a>
+            <a
+              href="/product-photos"
+              onClick={(e) => {
+                e.preventDefault();
+                navigate('/product-photos');
+              }}
+              className={`whitespace-nowrap shrink-0 transition-colors hover:text-white ${
+                currentRoute === 'product-photos'
+                  ? 'text-white underline decoration-brand decoration-2 underline-offset-8'
+                  : 'text-slate-300'
+              }`}
+            >
+              Product Photos
+            </a>
+            <a
+              href="https://www.bellows-systems.com/"
+              className="hidden sm:inline whitespace-nowrap shrink-0 text-slate-300 transition-colors hover:text-white"
+            >
+              Main Website
             </a>
           </nav>
+
+          {/* Zone 3: Primary Action */}
+          <div className="hidden md:flex items-center shrink-0">
+            <button
+              type="button"
+              onClick={() => navigate('/', 'style-selection')}
+              className="rounded-lg bg-brand px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-dark whitespace-nowrap shrink-0 cursor-pointer"
+            >
+              Start Specification
+            </button>
+          </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-8 md:px-6 md:py-12">
         <AnimatePresence mode="wait">
-          {isSubmitted ? (
+          {currentRoute === 'product-photos' ? (
+            <motion.div
+              key="product-photos-page"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+            >
+              <ProductPhotoGallery
+                onNavigateToConfigurator={() => navigate('/', 'style-selection')}
+              />
+            </motion.div>
+          ) : isSubmitted ? (
             <motion.section
               key="thank-you"
               initial={{ opacity: 0, y: 15 }}
@@ -522,10 +619,29 @@ export default function App() {
             </div>
 
             <div className="space-y-4">
-              <h4 className="text-sm font-bold uppercase tracking-widest text-brand">Compliance</h4>
-              <div className="space-y-2 text-sm text-slate-300 md:text-base">
-                <p>CAGE CODE: 22727</p>
-                <p>ISO 9001:2015 Certified</p>
+              <h4 className="text-sm font-bold uppercase tracking-widest text-brand">Quick Links</h4>
+              <div className="flex flex-col space-y-2 text-sm text-slate-300 md:text-base">
+                <a
+                  href="/"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigate('/');
+                  }}
+                  className="w-fit hover:text-white transition-colors"
+                >
+                  Joint Configurator
+                </a>
+                <a
+                  href="/product-photos"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigate('/product-photos');
+                  }}
+                  className="w-fit hover:text-white transition-colors"
+                >
+                  Product Photo Gallery
+                </a>
+                <p className="text-slate-400 text-xs pt-1">CAGE CODE: 22727 · ISO 9001:2015</p>
               </div>
             </div>
 
