@@ -213,7 +213,7 @@ export const ProductPhotoGallery: React.FC<ProductPhotoGalleryProps> = ({
               setSearchQuery(e.target.value);
               setLightboxIndex(null);
             }}
-            placeholder="Search photos (e.g. Gimbal, Fabric, Caterpillar, Single-Ply, Waukesha, 24in...)"
+            placeholder="Search photos (e.g. Copper, Inconel, Exhaust, Fabric, Actuator, 30-Inch...)"
             aria-label="Search product photos"
             className="w-full rounded-xl border border-slate-200 bg-white py-3.5 pl-11 pr-11 text-sm text-slate-900 placeholder:text-slate-400 shadow-xs transition-colors focus:border-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/20"
           />
@@ -259,7 +259,7 @@ export const ProductPhotoGallery: React.FC<ProductPhotoGalleryProps> = ({
             No matching product photos found
           </h2>
           <p className="mt-2 max-w-md text-sm text-slate-500">
-            We couldn&apos;t find any photos matching &ldquo;{searchQuery}&rdquo;. Try another keyword like &ldquo;Bellows&rdquo;, &ldquo;Gimbal&rdquo;, &ldquo;Fabric&rdquo;, or &ldquo;Caterpillar&rdquo;.
+            We couldn&apos;t find any photos matching &ldquo;{searchQuery}&rdquo;. Try another keyword like &ldquo;Copper&rdquo;, &ldquo;Inconel&rdquo;, &ldquo;Exhaust&rdquo;, or &ldquo;Fabric&rdquo;.
           </p>
           <button
             type="button"
